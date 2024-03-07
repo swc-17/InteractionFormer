@@ -1,0 +1,70 @@
+# Config format schema number
+Dataset:
+  root:
+  cluster: False
+  batch_size: 2
+  shuffle: True
+  train_batch_size: 2
+  val_batch_size: 2
+  test_batch_size: 1
+  num_workers: 1
+  pin_memory: True
+  persistent_workers: True
+  train_raw_dir:
+  val_raw_dir:
+  test_raw_dir:
+  train_processed_dir: "data/waymo_processed/train"
+  val_processed_dir: "data/waymo_processed/validation"
+  test_processed_dir: "data/waymo_processed/test"
+  dataset: "sensead"
+
+Trainer:
+  strategy: ddp_find_unused_parameters_false
+  accelerator: "gpu"
+  devices: 1
+  max_epochs: 32
+  save_ckpt_path: '/home/sensetime/hdd2/multimodal/cache'
+  num_nodes: 1
+  mode: "fine_tune"
+  ckpt_path: "/home/sensetime/hdd2/multimodal/ckpt/epoch=138.ckpt"
+  precision: 32
+  accumulate_grad_batches: 1
+
+
+Model:
+  dataset: "waymo"
+  input_dim: 2
+  hidden_dim: 128
+  output_dim: 2
+  output_head: False
+  num_heads: 8
+  num_historical_steps: 11
+  head_dim: 16
+  dropout: 0.1
+  num_freq_bands: 64
+  optimizer:
+    lr: 0.0005
+    T_max: 64
+    weight_decay: 0.0001
+  encoder:
+    num_map_layers: 1
+    num_agent_layers: 2
+    a2a_radius: 50
+    pl2pl_radius: 150
+    pl2a_radius: 50
+    time_span: 10
+  decoder:
+    num_future_steps: 80
+    num_modes: 6
+    num_recurrent_steps: 1
+    num_t2m_steps: 30
+    pl2m_radius: 150
+    a2m_radius: 150
+    num_dec_layers: 2
+    m2m_attention: False
+    dynamic_map: False
+    use_static_motion: True
+    knn_neighbor: 10
+    point2m_radius: 30
+  submission_file_name: submission
+  submission_dir: ./
