@@ -159,22 +159,22 @@ class InteractionFormer(pl.LightningModule):
                                       pred['scale_propose_pos'][..., :self.output_dim]], dim=-1)
             traj_refine = torch.cat([pred['loc_refine_pos'][..., :self.output_dim],
                                      pred['scale_refine_pos'][..., :self.output_dim]], dim=-1)
-        
+
         pi = pred['pi']
         gt = torch.cat([data['agent']['target'][..., :self.output_dim], data['agent']['target'][..., -1:]], dim=-1)
         l2_norm = (torch.norm(traj_propose[..., :self.output_dim] -
                               gt[..., :self.output_dim].unsqueeze(1), p=2, dim=-1) * reg_mask.unsqueeze(1)).sum(dim=-1)
         best_mode = l2_norm.argmin(dim=-1)
-        
+
         matching_score = pred['matching_score'].squeeze(-1)
         matching_score_pi = pred['matching_score_pi'].squeeze(-1)
         matching_mask = pred['matching_mask']
         matching_index = pred['matching_index']
         matching_pair_indices = pred['matching_pair_indices']
-        
+
         reg_mask = reg_mask & matching_mask[:, None]
         cls_mask = cls_mask & matching_mask
-        
+
         if self.multi_pair:
             matching_gt = torch.cat((best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 0]]][:, None, None],
                                      best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 1]]][:, None, None]), dim=2)
@@ -183,11 +183,11 @@ class InteractionFormer(pl.LightningModule):
             matching_gt_1 = matching_gt[0::2][:, None, None]
             matching_gt_2 = matching_gt[1::2][:, None, None]
             matching_gt = torch.cat((matching_gt_1, matching_gt_2), dim=2)
-        
-        matching_target = (matching_index==matching_gt).all(-1).float()
+
+        matching_target = (matching_index == matching_gt).all(-1).float()
         matching_loss = self.matching_loss(matching_score, matching_target)
         matching_loss_pi = self.matching_loss(matching_score_pi, matching_target)
-        
+
         traj_propose_best = traj_propose[torch.arange(traj_propose.size(0)), best_mode]
         traj_refine_best = traj_refine[torch.arange(traj_refine.size(0)), best_mode]
         reg_loss_propose = self.reg_loss(traj_propose_best,
@@ -209,7 +209,7 @@ class InteractionFormer(pl.LightningModule):
         self.log('train_cls_loss', cls_loss, prog_bar=False, on_step=True, on_epoch=True, batch_size=1)
         self.log('train_matching_loss', matching_loss, prog_bar=False, on_step=True, on_epoch=True, batch_size=1)
         self.log('train_matching_loss_pi', matching_loss_pi, prog_bar=False, on_step=True, on_epoch=True, batch_size=1)
-        
+
         loss = reg_loss_propose + reg_loss_refine + cls_loss + matching_loss + matching_loss_pi
         return loss
 
@@ -237,7 +237,7 @@ class InteractionFormer(pl.LightningModule):
                                      pred['scale_refine_pos'][..., :self.output_dim]], dim=-1)
         pi = pred['pi']
         gt = torch.cat([data['agent']['target'][..., :self.output_dim], data['agent']['target'][..., -1:]], dim=-1)
-        
+
         matching_score = pred['matching_score']
         matching_score_pi = pred['matching_score_pi']
         matching_mask = pred['matching_mask']
@@ -246,7 +246,7 @@ class InteractionFormer(pl.LightningModule):
             matching = False
         else:
             matching = True
-        
+
         batch_size = matching_index.shape[0]
         if matching:
             topk_num = 6
@@ -255,111 +255,111 @@ class InteractionFormer(pl.LightningModule):
             topk_matching_score_refine = matching_score_pi.squeeze(-1).topk(dim=1, k=topk_num)[0]
             topk_pair_index = matching_index[torch.arange(batch_size)[:, None].repeat(1, topk_num), topk_pair_index]
             topk_pair_index_refine = matching_index[torch.arange(batch_size)[:, None].repeat(1, topk_num), topk_pair_index_refine]
-        
+
         if self.batch_nms:
-            pair_index_nms = torch.cat((torch.arange(6)[:,None].repeat_interleave(6,0), 
-                                        torch.arange(6)[:,None].repeat(6,1)), 
-                                       dim=-1)[None,...].repeat(batch_size, 1,1).to(matching_score.device)
-            pair_traj1_nms = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, pair_index_nms.shape[1]), pair_index_nms[:,:,0]]
-            pair_traj2_nms = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, pair_index_nms.shape[1]), pair_index_nms[:,:,1]]
-            pair_trajs_nms = torch.cat((pair_traj1_nms[:,:,None, ...], pair_traj2_nms[:,:,None, ...]), dim=2)
+            pair_index_nms = torch.cat((torch.arange(6)[:, None].repeat_interleave(6, 0),
+                                        torch.arange(6)[:, None].repeat(6, 1)),
+                                       dim=-1)[None, ...].repeat(batch_size, 1, 1).to(matching_score.device)
+            pair_traj1_nms = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, pair_index_nms.shape[1]), pair_index_nms[:, :, 0]]
+            pair_traj2_nms = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, pair_index_nms.shape[1]), pair_index_nms[:, :, 1]]
+            pair_trajs_nms = torch.cat((pair_traj1_nms[:, :, None, ...], pair_traj2_nms[:, :, None, ...]), dim=2)
             ret_idxs = []
             for i in range(matching_score_pi.shape[0]):
-                score_matrix = matching_score_pi[i].cpu().numpy().reshape(6,6)
+                score_matrix = matching_score_pi[i].cpu().numpy().reshape(6, 6)
                 row_ind, col_ind = linear_sum_assignment(score_matrix, maximize=True)
-                ret_idxs.append(torch.tensor([np.arange(36).reshape(6,6)[i] for i in list(zip(row_ind, col_ind))]).to(matching_score.device)[None, ...])
-            
+                ret_idxs.append(torch.tensor([np.arange(36).reshape(6, 6)[i] for i in list(zip(row_ind, col_ind))]).to(matching_score.device)[None, ...])
+
             ret_idxs = torch.cat(ret_idxs, dim=0)
             pair_score_nms = matching_score_pi[torch.arange(batch_size)[:, None], ret_idxs]
             pair_trajs_nms = pair_trajs_nms[torch.arange(batch_size)[:, None], ret_idxs]
-            
+
             topk_pair_index_refine_nms = matching_index[torch.arange(batch_size)[:, None].repeat(1, topk_num), ret_idxs]
             topk_matching_score_refine_nms = pair_score_nms
-            
+
         # select with pi topk pair
         pi_eval = F.softmax(pi[matching_mask], dim=-1)
-        pi_eval_new = pi_eval[0::2][:,None,...] * pi_eval[1::2][..., None]
-        pi_topk_index = pi_eval_new.view(batch_size,-1).topk(k=6, dim=1)[1]
-        topk_pair_index_pi = torch.cat((torch.arange(6)[:,None].repeat_interleave(6,0), 
-                                        torch.arange(6)[:,None].repeat(6,1)), 
-                                       dim=-1)[None,...].repeat(batch_size, 1,1).to(pi_eval.device)
+        pi_eval_new = pi_eval[0::2][:, None, ...] * pi_eval[1::2][..., None]
+        pi_topk_index = pi_eval_new.view(batch_size, -1).topk(k=6, dim=1)[1]
+        topk_pair_index_pi = torch.cat((torch.arange(6)[:, None].repeat_interleave(6, 0),
+                                        torch.arange(6)[:, None].repeat(6, 1)),
+                                       dim=-1)[None, ...].repeat(batch_size, 1, 1).to(pi_eval.device)
         topk_pair_index_pi = topk_pair_index_pi[torch.arange(batch_size)[:, None].repeat(1, 6), pi_topk_index]
 
         if matching:
-            pair_traj1 = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index.shape[1]), topk_pair_index[:,:,0]]
-            pair_traj2 = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index.shape[1]), topk_pair_index[:,:,1]]
-        
-            pair_traj1_refine = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine.shape[1]), topk_pair_index_refine[:,:,0]]
-            pair_traj2_refine = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine.shape[1]), topk_pair_index_refine[:,:,1]]
-            
+            pair_traj1 = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index.shape[1]), topk_pair_index[:, :, 0]]
+            pair_traj2 = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index.shape[1]), topk_pair_index[:, :, 1]]
+
+            pair_traj1_refine = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine.shape[1]), topk_pair_index_refine[:, :, 0]]
+            pair_traj2_refine = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine.shape[1]), topk_pair_index_refine[:, :, 1]]
+
             if self.batch_nms:
-                pair_traj1_refine_nms = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine_nms.shape[1]), topk_pair_index_refine_nms[:,:,0]]
-                pair_traj2_refine_nms = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine_nms.shape[1]), topk_pair_index_refine_nms[:,:,1]]
-            
+                pair_traj1_refine_nms = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine_nms.shape[1]), topk_pair_index_refine_nms[:, :, 0]]
+                pair_traj2_refine_nms = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_refine_nms.shape[1]), topk_pair_index_refine_nms[:, :, 1]]
+
         # eval with pi topk pair
-        pair_traj1_pi = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_pi.shape[1]), topk_pair_index_pi[:,:,0]]
-        pair_traj2_pi = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_pi.shape[1]), topk_pair_index_pi[:,:,1]]
-        
+        pair_traj1_pi = traj_refine[matching_mask][0::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_pi.shape[1]), topk_pair_index_pi[:, :, 0]]
+        pair_traj2_pi = traj_refine[matching_mask][1::2][torch.arange(batch_size)[:, None].repeat(1, topk_pair_index_pi.shape[1]), topk_pair_index_pi[:, :, 1]]
+
         reg_mask = reg_mask & matching_mask[:, None]
-        
+
         if matching:
-            pair_trajs = torch.cat((pair_traj1[:,:,None, ...], pair_traj2[:,:,None, ...]), dim=2)
-            pair_trajs_refine = torch.cat((pair_traj1_refine[:,:,None, ...], pair_traj2_refine[:,:,None, ...]), dim=2)
+            pair_trajs = torch.cat((pair_traj1[:, :, None, ...], pair_traj2[:, :, None, ...]), dim=2)
+            pair_trajs_refine = torch.cat((pair_traj1_refine[:, :, None, ...], pair_traj2_refine[:, :, None, ...]), dim=2)
             if self.batch_nms:
-                pair_trajs_refine_nms = torch.cat((pair_traj1_refine_nms[:,:,None, ...], pair_traj2_refine_nms[:,:,None, ...]), dim=2)
-        
-        pair_trajs_pi = torch.cat((pair_traj1_pi[:,:,None, ...], pair_traj2_pi[:,:,None, ...]), dim=2)
-        
+                pair_trajs_refine_nms = torch.cat((pair_traj1_refine_nms[:, :, None, ...], pair_traj2_refine_nms[:, :, None, ...]), dim=2)
+
+        pair_trajs_pi = torch.cat((pair_traj1_pi[:, :, None, ...], pair_traj2_pi[:, :, None, ...]), dim=2)
+
         gt_eval = gt[matching_mask]
-        gt_eval_1 = gt_eval[0::2][:, None, ...].repeat(1,6,1,1)
-        gt_eval_2 = gt_eval[1::2][:, None, ...].repeat(1,6,1,1)
+        gt_eval_1 = gt_eval[0::2][:, None, ...].repeat(1, 6, 1, 1)
+        gt_eval_2 = gt_eval[1::2][:, None, ...].repeat(1, 6, 1, 1)
         gt_eval_trajs = torch.cat((gt_eval_1[:, :, None, ...], gt_eval_2[:, :, None, ...]), dim=2)
-        
+
         eval_mask = reg_mask[matching_mask]
         eval_mask_1 = eval_mask[0::2]
         eval_mask_2 = eval_mask[1::2]
         eval_mask = torch.cat((eval_mask_1[:, None, ...], eval_mask_2[:, None, ...]), dim=1)
         if matching:
             self.minADE.update(pred=pair_trajs[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                            valid_mask=eval_mask)
+                               valid_mask=eval_mask)
             self.minFDE.update(pred=pair_trajs[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                            valid_mask=eval_mask)
+                               valid_mask=eval_mask)
             self.log('val_minADE', self.minADE, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
             self.log('val_minFDE', self.minFDE, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
-            
+
             self.minADE_refine.update(pred=pair_trajs_refine[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                            valid_mask=eval_mask)
+                                      valid_mask=eval_mask)
             self.minFDE_refine.update(pred=pair_trajs_refine[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                            valid_mask=eval_mask)
+                                      valid_mask=eval_mask)
             self.log('val_minADE_refine', self.minADE_refine, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
             self.log('val_minFDE_refine', self.minFDE_refine, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
             if self.batch_nms:
                 self.minADE_refine_nms.update(pred=pair_trajs_refine_nms[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                                valid_mask=eval_mask)
+                                              valid_mask=eval_mask)
                 self.minFDE_refine_nms.update(pred=pair_trajs_refine_nms[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                                valid_mask=eval_mask)
+                                              valid_mask=eval_mask)
                 self.log('val_minADE_refine_nms', self.minADE_refine_nms, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
                 self.log('val_minFDE_refine_nms', self.minFDE_refine_nms, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
-        
+
         self.minADE_pi.update(pred=pair_trajs_pi[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                             valid_mask=eval_mask)
+                              valid_mask=eval_mask)
         self.minFDE_pi.update(pred=pair_trajs_pi[..., :self.output_dim], target=gt_eval_trajs[..., :self.output_dim],
-                             valid_mask=eval_mask)
+                              valid_mask=eval_mask)
         self.log('val_minADE_pi', self.minADE_pi, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
         self.log('val_minFDE_pi', self.minFDE_pi, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
-        
+
         valid_mask_eval = reg_mask[matching_mask]
         traj_eval = traj_refine[matching_mask, :, :, :self.output_dim + self.output_head]
 
         pi_eval = F.softmax(pi[matching_mask], dim=-1)
         gt_eval = gt[matching_mask]
         self.minADE_marginal.update(pred=traj_eval[..., :self.output_dim], target=gt_eval[..., :self.output_dim], prob=pi_eval,
-                           valid_mask=valid_mask_eval)
+                                    valid_mask=valid_mask_eval)
         self.minFDE_marginal.update(pred=traj_eval[..., :self.output_dim], target=gt_eval[..., :self.output_dim], prob=pi_eval,
-                           valid_mask=valid_mask_eval)
+                                    valid_mask=valid_mask_eval)
         self.log('val_minADE_marginal', self.minADE_marginal, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
         self.log('val_minFDE_marginal', self.minFDE_marginal, prog_bar=True, on_step=False, on_epoch=True, batch_size=gt_eval.size(0))
-        
+
         if self.batch_nms:
             pair_trajs_refine = pair_trajs_refine_nms
             topk_matching_score_refine = topk_matching_score_refine_nms
@@ -379,9 +379,9 @@ class InteractionFormer(pl.LightningModule):
             traj_refine = torch.cat([pred['loc_refine_pos'][..., :self.output_dim],
                                      pred['scale_refine_pos'][..., :self.output_dim]], dim=-1)
         pi = pred['pi']
-        
+
         eval_mask = data['agent']['category'] == 3
-        
+
         origin_eval = data['agent']['position'][eval_mask, self.num_historical_steps - 1]
         theta_eval = data['agent']['heading'][eval_mask, self.num_historical_steps - 1]
         cos, sin = theta_eval.cos(), theta_eval.sin()

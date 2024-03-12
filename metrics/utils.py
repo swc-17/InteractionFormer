@@ -150,7 +150,7 @@ def batch_nms(pred_trajs, pred_scores,
     bs_idxs = torch.arange(batch_size).type_as(ret_idxs)
 
     for k in range(num_ret_modes):
-        cur_idx = point_val.argmax(dim=-1) # (batch_size)
+        cur_idx = point_val.argmax(dim=-1)  # (batch_size)
         ret_idxs[:, k] = cur_idx
 
         new_cover_mask = point_cover_mask[bs_idxs, cur_idx]  # (batch_size, N)

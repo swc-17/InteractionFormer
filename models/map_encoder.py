@@ -152,11 +152,11 @@ class MapEncoder(nn.Module):
         edge_index_pl2pl = data['map_polygon', 'to', 'map_polygon']['edge_index']
         type_pl2pl = data['map_polygon', 'to', 'map_polygon']['type'].int()
         edge_index_pl2pl_radius = radius_graph(x=pos_pl[:, :2], r=self.pl2pl_radius,
-                                                batch=data['map_polygon']['batch'] if isinstance(data, Batch) else None,
-                                                loop=False, max_num_neighbors=300)
+                                               batch=data['map_polygon']['batch'] if isinstance(data, Batch) else None,
+                                               loop=False, max_num_neighbors=300)
         type_pl2pl_radius = type_pl2pl.new_ones(edge_index_pl2pl_radius.size(1), dtype=torch.float) * 4
         edge_index_pl2pl, type_pl2pl = merge_edges(edge_indices=[edge_index_pl2pl_radius, edge_index_pl2pl],
-                                                    edge_attrs=[type_pl2pl_radius, type_pl2pl], reduce='min')
+                                                   edge_attrs=[type_pl2pl_radius, type_pl2pl], reduce='min')
         rel_pos_pl2pl = pos_pl[edge_index_pl2pl[0]] - pos_pl[edge_index_pl2pl[1]]
         rel_orient_pl2pl = wrap_angle(orient_pl[edge_index_pl2pl[0]] - orient_pl[edge_index_pl2pl[1]])
         if self.input_dim == 2:
@@ -174,7 +174,7 @@ class MapEncoder(nn.Module):
                  rel_orient_pl2pl], dim=-1)
         else:
             raise ValueError('{} is not a valid dimension'.format(self.input_dim))
-        
+
         type_pl2pl_emb = self.type_pl2pl_emb(type_pl2pl.long())
         r_pl2pl = self.r_pl2pl_emb(continuous_inputs=r_pl2pl, categorical_embs=[type_pl2pl_emb])
         for i in range(self.num_layers):

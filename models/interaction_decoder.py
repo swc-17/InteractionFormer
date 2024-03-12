@@ -127,7 +127,7 @@ class InteractionDecoder(nn.Module):
             self.to_conc_refine_head = None
         self.to_pi = MLPLayer(input_dim=hidden_dim, hidden_dim=hidden_dim, output_dim=1)
         self.sample_future_dynamic = 4
-        
+
         self.matching = True
         self.multi_pair = True
         if self.matching:
@@ -135,7 +135,7 @@ class InteractionDecoder(nn.Module):
                                                       num_freq_bands=num_freq_bands)
             self.cross_m2m_propose_attn_layer = AttentionLayer(hidden_dim=hidden_dim, num_heads=num_heads, head_dim=head_dim,
                                                                dropout=dropout, bipartite=False, has_pos_emb=False)
-            
+
             self.matching_cls = nn.Sequential(
                 nn.Linear(hidden_dim*2, hidden_dim),
                 nn.LayerNorm(hidden_dim),
@@ -144,7 +144,7 @@ class InteractionDecoder(nn.Module):
                 nn.Sigmoid()
             )
             self.matching_cls.apply(weight_init)
-            
+
             self.matching_cls_pi = nn.Sequential(
                 nn.Linear(hidden_dim*2, hidden_dim),
                 nn.LayerNorm(hidden_dim),
@@ -153,14 +153,14 @@ class InteractionDecoder(nn.Module):
                 nn.Sigmoid()
             )
             self.matching_cls_pi.apply(weight_init)
-            
+
             self.r_m2m_emb_dynamic_refine = FourierEmbedding(input_dim=input_dim_r_pl2m, hidden_dim=hidden_dim,
-                                                      num_freq_bands=num_freq_bands)
-            self.cross_m2m_refine_attn_layer =nn.ModuleList(
+                                                             num_freq_bands=num_freq_bands)
+            self.cross_m2m_refine_attn_layer = nn.ModuleList(
                 [AttentionLayer(hidden_dim=hidden_dim, num_heads=num_heads, head_dim=head_dim,
                                 dropout=dropout, bipartite=False, has_pos_emb=False) for _ in range(num_layers)]
             )
-        
+
         self.apply(weight_init)
 
     def forward(self,
@@ -188,8 +188,8 @@ class InteractionDecoder(nn.Module):
             matching_mask = np.isin(np.array(agent_id), np.array(matching_ids))
             matching_ids = np.array(agent_id)[matching_mask]
             matching_mask = torch.from_numpy(matching_mask).to(x_a.device)
-            matching_index = torch.cat((torch.arange(6)[:,None].repeat_interleave(6,0),
-                                        torch.arange(6)[:,None].repeat(6,1)), dim=-1)[None,...].repeat(sum(matching_num), 1,1).to(x_a.device)
+            matching_index = torch.cat((torch.arange(6)[:, None].repeat_interleave(6, 0),
+                                        torch.arange(6)[:, None].repeat(6, 1)), dim=-1)[None, ...].repeat(sum(matching_num), 1, 1).to(x_a.device)
 
             matching_ids_pair = [
                 [f"{k}_{i}" for k in obj]
@@ -197,7 +197,7 @@ class InteractionDecoder(nn.Module):
                 for obj in objs
             ]
             matching_pair_indices = torch.tensor([[np.where(matching_ids == elem)[0][0] for elem in row]
-                                            for row in np.array(matching_ids_pair)]).to(x_a.device)
+                                                  for row in np.array(matching_ids_pair)]).to(x_a.device)
         else:
             matching_ids = [i for k in data['objects_of_interest'] for i in k]
             matching_ids_batch = [i for i in range(data['agent']['batch'].max()+1) for _ in range(2)]
@@ -206,12 +206,12 @@ class InteractionDecoder(nn.Module):
             agent_batch = data['agent']['batch'].tolist()
             agent_id = [str(agent_id[i]) + '_'+str(agent_batch[i]) for i in range(len(agent_batch))]
             matching_mask = torch.from_numpy(np.isin(np.array(agent_id), np.array(matching_ids))).to(x_a.device)
-            matching_index = torch.cat((torch.arange(6)[:,None].repeat_interleave(6, 0), torch.arange(6)[:,None].repeat(6,1)), dim=-1)[None,...].repeat(data['agent']['batch'].max()+1, 1,1).to(x_a.device)
+            matching_index = torch.cat((torch.arange(6)[:, None].repeat_interleave(6, 0), torch.arange(6)[:, None].repeat(6, 1)), dim=-1)[None, ...].repeat(data['agent']['batch'].max()+1, 1, 1).to(x_a.device)
             matching_pair_indices = None
 
         matching_score = None
         matching_score_pi = None
-        
+
         m = self.mode_emb.weight.repeat(scene_enc['x_a'].size(0), 1)
 
         mask_src = data['agent']['valid_mask'][:, :self.num_historical_steps].contiguous()
@@ -299,14 +299,14 @@ class InteractionDecoder(nn.Module):
                 torch.cat(locs_propose_pos[:t + 1], dim=-1).view(-1, self.num_modes,
                                                                  self.num_future_steps // self.num_recurrent_steps * (t + 1),
                                                                  self.output_dim), dim=-2)[:, :, -self.num_future_steps // self.num_recurrent_steps:, :]
-            if self.matching:                
+            if self.matching:
                 agent_batch = data['agent']['batch'].unsqueeze(1)
                 unique_mask = ~torch.eye(agent_batch.shape[0], dtype=torch.bool).to(m.device)
-                m2m_index = dense_to_sparse((mask_dst[:,0].unsqueeze(1) & mask_dst[:,0].unsqueeze(0)) & (agent_batch==agent_batch.t()) & unique_mask)[0]
+                m2m_index = dense_to_sparse((mask_dst[:, 0].unsqueeze(1) & mask_dst[:, 0].unsqueeze(0)) & (agent_batch == agent_batch.t()) & unique_mask)[0]
 
                 m2m_index = torch.cat(
                     [m2m_index + i * m2m_index.new_tensor([data['agent']['num_nodes']]) for i in
-                    range(self.num_modes)], dim=1)
+                     range(self.num_modes)], dim=1)
                 sample_index = torch.linspace(0, loc_propose_pos_t.shape[2] - 1, self.sample_future_dynamic,
                                               dtype=torch.int32).to(loc_propose_pos_t.device)
                 loc_propose_pos_t = torch.index_select(loc_propose_pos_t, dim=2, index=sample_index)
@@ -321,11 +321,11 @@ class InteractionDecoder(nn.Module):
                 rot_mat[:, 1, 1] = cos
                 pos_m_dynamic = torch.bmm(loc_propose_pos_t.reshape(val_agent_num, -1, 2), rot_mat) + pos_m[:, :2].unsqueeze(1)
                 diff_m = pos_m_dynamic.reshape(val_agent_num, self.num_modes, num_future_steps, 2)[:, :, -1, :] - pos_m_dynamic.reshape(val_agent_num, self.num_modes, num_future_steps, 2)[:, :, 0, :]
-                head_m_motion = torch.atan2(diff_m[:, :, 1], diff_m[:, :, 0]).transpose(1,0).reshape(-1)
+                head_m_motion = torch.atan2(diff_m[:, :, 1], diff_m[:, :, 0]).transpose(1, 0).reshape(-1)
                 head_vector_m_motion = torch.stack([head_m_motion.cos(), head_m_motion.sin()], dim=-1)
 
-                m_position = pos_m_dynamic.reshape(val_agent_num, self.num_modes, num_future_steps, 2)[:,:,-1,:].transpose(1,0).reshape(-1,2)
-                
+                m_position = pos_m_dynamic.reshape(val_agent_num, self.num_modes, num_future_steps, 2)[:, :, -1, :].transpose(1, 0).reshape(-1, 2)
+
                 rel_pos_m2m_dynamic = m_position[m2m_index[0]] - m_position[m2m_index[1]]
                 rel_orient_m2m_dynamic = wrap_angle(head_m_motion[m2m_index[0]] - head_m_motion[m2m_index[1]])
                 r_m2m_dynamic = torch.stack(
@@ -333,18 +333,18 @@ class InteractionDecoder(nn.Module):
                         angle_between_2d_vectors(ctr_vector=head_vector_m_motion[m2m_index[1]], nbr_vector=rel_pos_m2m_dynamic[:, :2]),
                         rel_orient_m2m_dynamic], dim=-1)
                 r_m2m_dynamic = self.r_m2m_emb_dynamic(continuous_inputs=r_m2m_dynamic, categorical_embs=None)
-                m = m.transpose(1,0).reshape(-1, self.hidden_dim)
+                m = m.transpose(1, 0).reshape(-1, self.hidden_dim)
                 m = self.cross_m2m_propose_attn_layer(m, r_m2m_dynamic, m2m_index)
-                m = m.reshape(self.num_modes, val_agent_num, self.hidden_dim).transpose(1,0)
+                m = m.reshape(self.num_modes, val_agent_num, self.hidden_dim).transpose(1, 0)
                 locs_propose_pos[t] = self.to_loc_propose_pos(m)
                 scales_propose_pos[t] = self.to_scale_propose_pos(m)
-                
+
                 matching_m = m[matching_mask]
                 if self.multi_pair and self.training:
-                    matching_m = torch.cat((matching_m[matching_pair_indices[:,0]].repeat_interleave(6,1),
-                                            matching_m[matching_pair_indices[:,1]].repeat(1,6,1)), dim=-1)
+                    matching_m = torch.cat((matching_m[matching_pair_indices[:, 0]].repeat_interleave(6, 1),
+                                            matching_m[matching_pair_indices[:, 1]].repeat(1, 6, 1)), dim=-1)
                 else:
-                    matching_m = torch.cat((matching_m[0::2].repeat_interleave(6,1), matching_m[1::2].repeat(1,6,1)), dim=-1)
+                    matching_m = torch.cat((matching_m[0::2].repeat_interleave(6, 1), matching_m[1::2].repeat(1, 6, 1)), dim=-1)
 
                 matching_score = self.matching_cls(matching_m)
 
@@ -378,27 +378,27 @@ class InteractionDecoder(nn.Module):
 
         m = m.reshape(-1, self.num_future_steps, self.hidden_dim).transpose(0, 1)
         m = self.traj_emb(m, self.traj_emb_h0.unsqueeze(1).repeat(1, m.size(1), 1))[1].squeeze(0)
-        m = m.reshape(-1,self.num_modes, self.hidden_dim)
+        m = m.reshape(-1, self.num_modes, self.hidden_dim)
 
         if self.matching:
             if self.training:
                 gt = data['agent']['target'][..., :self.output_dim]
                 reg_mask = data['agent']['valid_mask'][:, self.num_historical_steps:]
                 l2_norm = (torch.norm(loc_propose_pos[..., :self.output_dim] -
-                                    gt.unsqueeze(1), p=2, dim=-1) * reg_mask.unsqueeze(1)).sum(dim=-1)
+                                      gt.unsqueeze(1), p=2, dim=-1) * reg_mask.unsqueeze(1)).sum(dim=-1)
                 best_mode = l2_norm.argmin(dim=-1)
             # pair first
             edge_pair_first = []
             for i in range(self.num_modes):
                 # pair_index = torch.nonzero(torch.all(matching_index==matching_index[matching_index[:,0]==i][torch.argmax(matching_score[matching_index[:,0]==i])], dim=1))[0]
                 if not self.training:
-                    max_score_index = torch.argmax(matching_score[matching_index[:,:,0]==i].reshape(-1,6), dim=1)
-                    pair_index = matching_index[matching_index[:,:,0]==i].reshape(-1, 6, 2)[torch.arange(max_score_index.shape[0]), max_score_index]
+                    max_score_index = torch.argmax(matching_score[matching_index[:, :, 0] == i].reshape(-1, 6), dim=1)
+                    pair_index = matching_index[matching_index[:, :, 0] == i].reshape(-1, 6, 2)[torch.arange(max_score_index.shape[0]), max_score_index]
                 else:
                     if self.multi_pair:
-                        pair_index = torch.cat((torch.tensor([i]*matching_pair_indices.shape[0])[None, :].to(m.device), best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 1]]][None,:]), dim=0).transpose(1,0)
+                        pair_index = torch.cat((torch.tensor([i]*matching_pair_indices.shape[0])[None, :].to(m.device), best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 1]]][None, :]), dim=0).transpose(1, 0)
                     else:
-                        pair_index = torch.cat((torch.tensor([i]*best_mode[matching_mask][1::2].shape[0])[None, :].to(m.device), best_mode[matching_mask][1::2][None,:]), dim=0).transpose(1,0)
+                        pair_index = torch.cat((torch.tensor([i]*best_mode[matching_mask][1::2].shape[0])[None, :].to(m.device), best_mode[matching_mask][1::2][None, :]), dim=0).transpose(1, 0)
 
                 if self.multi_pair and self.training:
                     pair_index1 = torch.where(matching_mask)[0][matching_pair_indices[:, 0]]*6 + pair_index[:, 0]
@@ -407,20 +407,20 @@ class InteractionDecoder(nn.Module):
                     pair_index1 = torch.where(matching_mask)[0][0::2]*6 + pair_index[:, 0]
                     pair_index2 = torch.where(matching_mask)[0][1::2]*6 + pair_index[:, 1]
 
-                edge_pair_first.append(torch.cat((pair_index2[None,:], pair_index1[None,:]), dim=0).to(m.device))
+                edge_pair_first.append(torch.cat((pair_index2[None, :], pair_index1[None, :]), dim=0).to(m.device))
 
             # pair second
             edge_pair_second = []
             for i in range(self.num_modes):
                 # pair_index = torch.nonzero(torch.all(matching_index==matching_index[matching_index[:,0]==i][torch.argmax(matching_score[matching_index[:,0]==i])], dim=1))[0]
                 if not self.training:
-                    max_score_index = torch.argmax(matching_score[matching_index[:,:,1]==i].reshape(-1,6), dim=1)
-                    pair_index = matching_index[matching_index[:,:,1]==i].reshape(-1, 6, 2)[torch.arange(max_score_index.shape[0]), max_score_index]
+                    max_score_index = torch.argmax(matching_score[matching_index[:, :, 1] == i].reshape(-1, 6), dim=1)
+                    pair_index = matching_index[matching_index[:, :, 1] == i].reshape(-1, 6, 2)[torch.arange(max_score_index.shape[0]), max_score_index]
                 else:
                     if self.multi_pair:
-                        pair_index = torch.cat((best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 1]]][None,:], torch.tensor([i]*matching_pair_indices.shape[0])[None, :].to(m.device)), dim=0).transpose(1,0)
+                        pair_index = torch.cat((best_mode[torch.where(matching_mask)[0][matching_pair_indices[:, 1]]][None, :], torch.tensor([i]*matching_pair_indices.shape[0])[None, :].to(m.device)), dim=0).transpose(1, 0)
                     else:
-                        pair_index = torch.cat((best_mode[matching_mask][0::2][None,:], torch.tensor([i]*best_mode[matching_mask][0::2].shape[0])[None, :].to(m.device)), dim=0).transpose(1,0)
+                        pair_index = torch.cat((best_mode[matching_mask][0::2][None, :], torch.tensor([i]*best_mode[matching_mask][0::2].shape[0])[None, :].to(m.device)), dim=0).transpose(1, 0)
 
                 if self.multi_pair and self.training:
                     pair_index1 = torch.where(matching_mask)[0][matching_pair_indices[:, 0]]*6 + pair_index[:, 0]
@@ -429,7 +429,7 @@ class InteractionDecoder(nn.Module):
                     pair_index1 = torch.where(matching_mask)[0][0::2]*6 + pair_index[:, 0]
                     pair_index2 = torch.where(matching_mask)[0][1::2]*6 + pair_index[:, 1]
 
-                edge_pair_second.append(torch.cat((pair_index1[None,:], pair_index2[None,:]), dim=0).to(m.device))
+                edge_pair_second.append(torch.cat((pair_index1[None, :], pair_index2[None, :]), dim=0).to(m.device))
 
             edge_index_m2m_pair = torch.cat(edge_pair_first + edge_pair_second, dim=1)
 
@@ -442,14 +442,14 @@ class InteractionDecoder(nn.Module):
             rel_head_m2m = wrap_angle(head_m_pair[edge_index_m2m_pair[0]] - head_m_pair[edge_index_m2m_pair[1]])
             r_m2m = torch.stack(
                 [torch.norm(rel_pos_m2m[:, :2], p=2, dim=-1),
-                angle_between_2d_vectors(ctr_vector=head_vector_m_pair[edge_index_m2m_pair[1]], nbr_vector=rel_pos_m2m[:, :2]),
-                rel_head_m2m], dim=-1)
+                 angle_between_2d_vectors(ctr_vector=head_vector_m_pair[edge_index_m2m_pair[1]], nbr_vector=rel_pos_m2m[:, :2]),
+                 rel_head_m2m], dim=-1)
             r_m2m = self.r_a2m_emb(continuous_inputs=r_m2m, categorical_embs=None)
         # edge_index_m2m_pair = torch.cat(
         #     [edge_index_m2m_pair + i * edge_index_m2m_pair.new_tensor([data['agent']['num_nodes']]) for i in
         #      range(self.num_modes)], dim=1)
 
-        m = m.reshape(-1,self.hidden_dim)
+        m = m.reshape(-1, self.hidden_dim)
         for i in range(self.num_layers):
             m = self.t2m_refine_attn_layers[i]((x_t, m), r_t2m, edge_index_t2m)
             m = m.reshape(-1, self.num_modes, self.hidden_dim).transpose(0, 1).reshape(-1, self.hidden_dim)
@@ -477,10 +477,10 @@ class InteractionDecoder(nn.Module):
 
         matching_m = m[matching_mask]
         if self.multi_pair and self.training:
-            matching_m = torch.cat((matching_m[matching_pair_indices[:,0]].repeat_interleave(6,1),
-                                    matching_m[matching_pair_indices[:,1]].repeat(1,6,1)), dim=-1)
+            matching_m = torch.cat((matching_m[matching_pair_indices[:, 0]].repeat_interleave(6, 1),
+                                    matching_m[matching_pair_indices[:, 1]].repeat(1, 6, 1)), dim=-1)
         else:
-            matching_m = torch.cat((matching_m[0::2].repeat_interleave(6,1), matching_m[1::2].repeat(1,6,1)), dim=-1)
+            matching_m = torch.cat((matching_m[0::2].repeat_interleave(6, 1), matching_m[1::2].repeat(1, 6, 1)), dim=-1)
         if self.matching:
             matching_score_pi = self.matching_cls_pi(matching_m)
 

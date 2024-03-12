@@ -1,5 +1,6 @@
 
-import sys, os
+import sys
+import os
 import numpy as np
 import pickle
 import tensorflow as tf
@@ -9,7 +10,7 @@ from tqdm import tqdm
 from waymo_open_dataset.protos import scenario_pb2
 from waymo_types import object_type, lane_type, road_line_type, road_edge_type, signal_state, polyline_type
 
-    
+
 def decode_tracks_from_proto(tracks):
     track_infos = {
         'object_id': [],  # {0: unset, 1: vehicle, 2: pedestrian, 3: cyclist, 4: others}
@@ -61,16 +62,16 @@ def decode_map_features_from_proto(map_features):
             cur_info['exit_lanes'] = list(cur_data.lane.exit_lanes)
 
             cur_info['left_boundary'] = [{
-                    'start_index': x.lane_start_index, 'end_index': x.lane_end_index,
-                    'feature_id': x.boundary_feature_id,
-                    'boundary_type': x.boundary_type  # roadline type
-                } for x in cur_data.lane.left_boundaries
+                'start_index': x.lane_start_index, 'end_index': x.lane_end_index,
+                'feature_id': x.boundary_feature_id,
+                'boundary_type': x.boundary_type  # roadline type
+            } for x in cur_data.lane.left_boundaries
             ]
             cur_info['right_boundary'] = [{
-                    'start_index': x.lane_start_index, 'end_index': x.lane_end_index,
-                    'feature_id': x.boundary_feature_id,
-                    'boundary_type': road_line_type[x.boundary_type]  # roadline type
-                } for x in cur_data.lane.right_boundaries
+                'start_index': x.lane_start_index, 'end_index': x.lane_end_index,
+                'feature_id': x.boundary_feature_id,
+                'boundary_type': road_line_type[x.boundary_type]  # roadline type
+            } for x in cur_data.lane.right_boundaries
             ]
 
             global_type = polyline_type[cur_info['type']]
@@ -243,7 +244,7 @@ def create_infos_from_protos(raw_data_path, output_path, num_workers=16):
     with open(val_filename, 'wb') as f:
         pickle.dump(val_infos, f)
     print('----------------Waymo info val file is saved to %s----------------' % val_filename)
-    
+
 
 if __name__ == '__main__':
     create_infos_from_protos(

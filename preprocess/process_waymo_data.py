@@ -1,3 +1,6 @@
+import math
+from shapely.geometry import Polygon
+from enum import Enum
 import json
 import os
 import numpy as np
@@ -10,9 +13,7 @@ from collections import defaultdict
 import copy
 import pandas as pd
 object_type_convert = {0: 'TYPE_UNSET', 1: 'TYPE_VEHICLE', 2: 'TYPE_PEDESTRIAN', 3: 'TYPE_CYCLIST'}
-from enum import Enum
-from shapely.geometry import Polygon
-import math
+
 
 def minimum_rectangle(polygon):
     poly = Polygon(polygon)
@@ -91,8 +92,9 @@ def process_subref(ref, ego, offset, lane_range):
         new_ref["refline"] = [{'x': sub_ref[row, 0],
                                'y': sub_ref[row, 1],
                                'z': sub_ref[row, 2]} for row in
-                                range(sub_ref.shape[0])]
+                              range(sub_ref.shape[0])]
     return new_ref
+
 
 def process_subbounds(bounds, ego, offset, lane_range):
     new_bounds = copy.deepcopy(bounds)
@@ -126,6 +128,7 @@ def process_connections(bounds, ego, offset, lane_range):
             new_bounds.pop(bound_id)
             continue
     return new_bounds
+
 
 def process_sub_crosswalks(crosswalks, ego, offset, lane_range):
     new_bounds = copy.deepcopy(crosswalks)
@@ -755,5 +758,3 @@ class DataProcessor:
             return all_lights_info, dynamic_map_infos
         else:
             return None, None
-
-

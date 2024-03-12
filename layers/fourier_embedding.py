@@ -63,10 +63,10 @@ class MLPEmbedding(nn.Module):
         self.input_dim = input_dim
         self.hidden_dim = hidden_dim
         self.mlp = nn.Sequential(
-                nn.Linear(input_dim, hidden_dim),
-                nn.LayerNorm(hidden_dim),
-                nn.ReLU(inplace=True),
-                nn.Linear(hidden_dim, hidden_dim))
+            nn.Linear(input_dim, hidden_dim),
+            nn.LayerNorm(hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, hidden_dim))
         # self.to_out = nn.Sequential(
         #     nn.LayerNorm(hidden_dim),
         #     nn.ReLU(inplace=True),

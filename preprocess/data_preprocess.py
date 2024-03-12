@@ -1,4 +1,5 @@
 
+from petrel_client.client import Client
 import glob
 import multiprocessing
 import os
@@ -13,9 +14,9 @@ from waymo_open_dataset.protos import scenario_pb2
 
 from waymo_types import lane_type, object_type, polyline_type, road_edge_type, road_line_type, signal_state
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-from petrel_client.client import Client
 
 client = Client()
+
 
 def decode_tracks_from_proto(tracks):
     track_infos = {
@@ -78,10 +79,10 @@ def decode_map_features_from_proto(map_features, scenario_id):
 
             cur_info['left_boundary'] = [x.boundary_feature_id for x in cur_data.lane.left_boundaries]
             cur_info['right_boundary'] = [x.boundary_feature_id for x in cur_data.lane.right_boundaries]
-            
+
             cur_info['left_boundary_start_index'] = [x.lane_start_index for x in cur_data.lane.left_boundaries]
             cur_info['right_boundary_start_index'] = [x.lane_start_index for x in cur_data.lane.right_boundaries]
-            
+
             cur_info['left_boundary_end_index'] = [x.lane_end_index for x in cur_data.lane.left_boundaries]
             cur_info['right_boundary_end_index'] = [x.lane_end_index for x in cur_data.lane.right_boundaries]
 
@@ -190,7 +191,7 @@ def process_waymo_data_with_scenario_proto(data_file, output_path=None, data_pat
     f.close()
     dataset = tf.data.TFRecordDataset(tmp_path+data_file, compression_type='')
     ret_infos = []
-    
+
     # scenario_list = []
     for cnt, data in enumerate(dataset):
         info = {}
@@ -210,7 +211,7 @@ def process_waymo_data_with_scenario_proto(data_file, output_path=None, data_pat
     #         continue
         # if len(list(scenario.objects_of_interest)) != 2:
         #     print('pair', len(scenario.tracks_to_predict))
-        
+
         # if len(scenario.tracks_to_predict) !=2:
         #     print(len(scenario.tracks_to_predict))
     #     scenario_list.append('sample_'+info['scenario_id']+'.pkl')
@@ -241,7 +242,7 @@ def process_waymo_data_with_scenario_proto(data_file, output_path=None, data_pat
         # with open(output_file, 'wb') as f:
         #     pickle.dump(save_infos, f)
         output_file = output_path + f'sample_{scenario.scenario_id}.pkl'
-        
+
         save_info_file = pickle.dumps(save_infos)
         client.put(output_file, save_info_file)
 
@@ -272,7 +273,7 @@ def get_infos_from_protos(data_path, output_path=None, num_workers=36):
     # all_infos = []
     # for i in tqdm(src_files):
     #     all_infos.append(func(i))
-        
+
     with multiprocessing.Pool(num_workers) as p:
         data_infos = list(tqdm(p.imap_unordered(func, src_files), total=len(src_files)))
     all_infos = [item for infos in data_infos for item in infos]

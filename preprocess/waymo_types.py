@@ -1,6 +1,5 @@
 
 
-
 object_type = {
     0: 'TYPE_UNSET',
     1: 'TYPE_VEHICLE',

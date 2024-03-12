@@ -6,6 +6,7 @@ from torch_geometric.transforms import BaseTransform
 from utils import wrap_angle
 from augumentation.kinematic_history_agent_augmentation import KinematicHistoryAgentAugmentor
 
+
 def to_16(data):
     if isinstance(data, dict):
         for key, value in data.items():
@@ -110,7 +111,7 @@ class WaymoTargetBuilder(BaseTransform):
         av_index = agent["av_index"]
         valid = agent['valid_mask']
         ego_pos = agent["position"][av_index]
-        distance = torch.norm(agent["position"][:, self.num_historical_steps-1, :2] - ego_pos[self.num_historical_steps-1, :2], dim=-1) # keep the closest 100 vehicles near the ego car
+        distance = torch.norm(agent["position"][:, self.num_historical_steps-1, :2] - ego_pos[self.num_historical_steps-1, :2], dim=-1)  # keep the closest 100 vehicles near the ego car
         sort_idx = distance.sort()[1]
         mask = torch.zeros(valid.shape[0])
         mask[sort_idx[:max_num]] = 1
@@ -188,24 +189,24 @@ class WaymoTargetBuilder(BaseTransform):
         rot_mat[:, 1, 1] = cos
         target = origin.new_zeros(num_nodes, num_future_steps, 3)
         target[..., :2] = torch.bmm(position[:, num_historical_steps:, :2] -
-                                                     origin[:, :2].unsqueeze(1), rot_mat)
+                                    origin[:, :2].unsqueeze(1), rot_mat)
         his = origin.new_zeros(num_nodes, num_historical_steps, 3)
         his[..., :2] = torch.bmm(position[:, :num_historical_steps, :2] -
-                                                  origin[:, :2].unsqueeze(1), rot_mat)
+                                 origin[:, :2].unsqueeze(1), rot_mat)
         if position.size(2) == 3:
             target[..., 2] = (position[:, num_historical_steps:, 2] -
-                                               origin[:, 2].unsqueeze(-1))
+                              origin[:, 2].unsqueeze(-1))
             his[..., 2] = (position[:, :num_historical_steps, 2] -
-                                            origin[:, 2].unsqueeze(-1))
+                           origin[:, 2].unsqueeze(-1))
             target[..., 3] = wrap_angle(heading[:, num_historical_steps:] -
-                                                         theta.unsqueeze(-1))
+                                        theta.unsqueeze(-1))
             his[..., 3] = wrap_angle(heading[:, :num_historical_steps] -
-                                                      theta.unsqueeze(-1))
+                                     theta.unsqueeze(-1))
         else:
             target[..., 2] = wrap_angle(heading[:, num_historical_steps:] -
-                                                         theta.unsqueeze(-1))
+                                        theta.unsqueeze(-1))
             his[..., 2] = wrap_angle(heading[:, :num_historical_steps] -
-                                                      theta.unsqueeze(-1))
+                                     theta.unsqueeze(-1))
         return his, target
 
     def __call__(self, data) -> HeteroData:
@@ -217,18 +218,18 @@ class WaymoTargetBuilder(BaseTransform):
         data['map_point']['position'] = data['map_point']['position'][..., :2] - coordinate
         data['map_polygon']['position'] = data['map_polygon']['position'][..., :2] - coordinate
         if agent["num_nodes"] > 50:
-            agent = self.clip(agent, 50) 
+            agent = self.clip(agent, 50)
         self.score_ego_agent_only(agent)
         his, target = self.rotate_agents(data['agent']['position'],
-                           data["agent"]['heading'],
-                           data['agent']['num_nodes'], self.num_historical_steps, self.num_future_steps)
+                                         data["agent"]['heading'],
+                                         data['agent']['num_nodes'], self.num_historical_steps, self.num_future_steps)
         data["agent"]["his"] = his
         data["agent"]["target"] = target
 
         av_index = agent["av_index"]
         ego_his, ego_target = self.rotate_agents(data['agent']['position'][av_index].unsqueeze(0),
-                           data["agent"]['heading'][av_index].unsqueeze(0),
-                           1, 50, 60)
+                                                 data["agent"]['heading'][av_index].unsqueeze(0),
+                                                 1, 50, 60)
 
         ego_valid_mask = data['agent']["valid_mask"][:, :][av_index]
         ego_his = ego_his[ego_valid_mask[:self.num_historical_steps].unsqueeze(0)]

@@ -109,7 +109,7 @@ class AgentEncoder(nn.Module):
                 self.type_a_emb(data['agent']['type'].long()).repeat_interleave(repeats=self.num_historical_steps,
                                                                                 dim=0),
                 self.shape_emb(data['agent']['shape'][:, self.num_historical_steps-1, :]).repeat_interleave(repeats=self.num_historical_steps,
-                                                                         dim=0)
+                                                                                                            dim=0)
             ]
         else:
             raise ValueError('{} is not a valid dataset'.format(self.dataset))

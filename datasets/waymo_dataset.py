@@ -10,6 +10,7 @@ from torch_geometric.data import Dataset
 from utils.log import Logging
 from waymo_open_dataset.wdl_limited.sim_agents_metrics.interaction_features import compute_time_to_collision_with_object_in_front
 
+
 class WaymoDataset(Dataset):
 
     def __init__(self,
@@ -73,41 +74,41 @@ class WaymoDataset(Dataset):
             # self.find_interaction_pair(data)
             # self.build_pair(data)
         return data
-    
+
     def build_pair(self, data):
         agent = data['agent']
         eval_mask = agent['category'] == 3
         if eval_mask.sum() >= 2:
             data['objects_of_interest'] = torch.tensor(agent['id'])[eval_mask].to(torch.int).tolist()[:2]
         elif eval_mask.sum() == 1:
-            other_index = (agent['position'][:,10,:2] - agent['position'][:,10,:2][eval_mask]).norm(dim=1).topk(k=2, largest=False)[1][1]
+            other_index = (agent['position'][:, 10, :2] - agent['position'][:, 10, :2][eval_mask]).norm(dim=1).topk(k=2, largest=False)[1][1]
             eval_mask[other_index] = True
             data['objects_of_interest'] = torch.tensor(agent['id'])[eval_mask].to(torch.int).tolist()[:2]
         else:
-            eval_mask = agent['valid_mask'][:,10]
+            eval_mask = agent['valid_mask'][:, 10]
             data['objects_of_interest'] = torch.tensor(agent['id'])[eval_mask].to(torch.int).tolist()[:2]
-        
+
     def find_interaction_pair(self, data):
         agent = data['agent']
         eval_mask = agent['category'] == 3
         objects_of_interest = []
-        
+
         if eval_mask.sum() >= 2:
             # valid_index = torch.arange(eval_mask.sum())
             valid_index = torch.where(eval_mask)[0]
             index_pair = torch.combinations(valid_index)
             for i in range(index_pair.shape[0]):
-                center_x = agent['position'][:,:,0][index_pair[i]].numpy()
-                center_y = agent['position'][:,:,1][index_pair[i]].numpy()
-                length = agent['shape'][:,:,0][index_pair[i]].numpy()
-                width = agent['shape'][:,:,1][index_pair[i]].numpy()
+                center_x = agent['position'][:, :, 0][index_pair[i]].numpy()
+                center_y = agent['position'][:, :, 1][index_pair[i]].numpy()
+                length = agent['shape'][:, :, 0][index_pair[i]].numpy()
+                width = agent['shape'][:, :, 1][index_pair[i]].numpy()
                 heading = agent['heading'][index_pair[i]].numpy()
                 valid = agent['valid_mask'][index_pair[i]].numpy()
                 evaluated_object_mask = eval_mask[index_pair[i]].numpy()
                 agent_id = torch.tensor(agent['id'])[index_pair[i]]
-            
+
                 evaluated_object_mask[:] = True
                 # evaluated_object_mask[index_pair[i]] = True
                 ttc = compute_time_to_collision_with_object_in_front(center_x=center_x, center_y=center_y, length=length, width=width, heading=heading, valid=valid, evaluated_object_mask=evaluated_object_mask, seconds_per_step=0.1)
-                if (ttc.numpy()<10).any():
+                if (ttc.numpy() < 10).any():
                     objects_of_interest.append(agent_id.int().tolist())

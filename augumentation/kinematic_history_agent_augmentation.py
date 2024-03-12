@@ -132,7 +132,6 @@ class KinematicHistoryAgentAugmentor(AbstractAugmentor):
         else:
             return ego, targets
 
-
     @property
     def required_features(self) -> List[str]:
         """Inherited, see superclass."""

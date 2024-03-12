@@ -63,6 +63,7 @@ class DataLoader(torch.utils.data.DataLoader):
         **kwargs (optional): Additional arguments of
             :class:`torch.utils.data.DataLoader`.
     """
+
     def __init__(
         self,
         dataset: Union[Dataset, Sequence[BaseData]],

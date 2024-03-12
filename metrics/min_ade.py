@@ -7,6 +7,7 @@ from torchmetrics import Metric
 from metrics.utils import topk
 from metrics.utils import valid_filter
 
+
 class minADE_src(Metric):
 
     def __init__(self,
@@ -58,16 +59,8 @@ class minADE(Metric):
                pred: torch.Tensor,
                target: torch.Tensor,
                valid_mask: Optional[torch.Tensor] = None) -> None:
-        # inds_last = (valid_mask * torch.arange(1, valid_mask.size(-1) + 1, device=self.device)).argmax(dim=-1)
-        # inds_best = torch.norm(
-        #     pred[torch.arange(pred.size(0)).unsqueeze(1), torch.arange(12).unsqueeze(0), inds_last] -
-        #     target[torch.arange(pred.size(0)).unsqueeze(1), torch.arange(12).unsqueeze(0), inds_last].unsqueeze(-2),
-        #     p=2, dim=-1).argmin(dim=-1)
-        # self.sum += ((torch.norm(pred[torch.arange(pred.size(0)), inds_best] - target, p=2, dim=-1) *
-        #                 valid_mask).sum(dim=-1) / valid_mask.sum(dim=-1)).sum()
-        
         self.sum += ((torch.norm(pred - target, p=2, dim=-1) *
-                          valid_mask.unsqueeze(1)).sum(dim=(2,3)).min(dim=-1)[0] / valid_mask.sum(dim=(1,2))).sum()
+                      valid_mask.unsqueeze(1)).sum(dim=(2, 3)).min(dim=-1)[0] / valid_mask.sum(dim=(1, 2))).sum()
         self.count += pred.size(0)
 
     def compute(self) -> torch.Tensor:

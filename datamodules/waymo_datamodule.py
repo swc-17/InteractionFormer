@@ -66,19 +66,19 @@ class WaymoDataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         WaymoDataset(self.root, 'train', processed_dir=self.train_processed_dir,
-                       transform=self.train_transform, cluster=self.cluster)
+                     transform=self.train_transform, cluster=self.cluster)
         WaymoDataset(self.root, 'val', processed_dir=self.val_processed_dir,
-                       transform=self.val_transform, cluster=self.cluster)
+                     transform=self.val_transform, cluster=self.cluster)
         WaymoDataset(self.root, 'test', processed_dir=self.test_processed_dir,
-                       transform=self.test_transform, cluster=self.cluster)
+                     transform=self.test_transform, cluster=self.cluster)
 
     def setup(self, stage: Optional[str] = None) -> None:
         self.train_dataset = WaymoDataset(self.root, 'train', processed_dir=self.train_processed_dir,
-                                            transform=self.train_transform, cluster=self.cluster)
+                                          transform=self.train_transform, cluster=self.cluster)
         self.val_dataset = WaymoDataset(self.root, 'val', processed_dir=self.val_processed_dir,
-                                          transform=self.val_transform, cluster=self.cluster)
+                                        transform=self.val_transform, cluster=self.cluster)
         self.test_dataset = WaymoDataset(self.root, 'test', processed_dir=self.test_processed_dir,
-                                           transform=self.test_transform, cluster=self.cluster)
+                                         transform=self.test_transform, cluster=self.cluster)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.train_batch_size, shuffle=self.shuffle,

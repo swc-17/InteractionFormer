@@ -6,6 +6,7 @@ from torchmetrics import Metric
 from metrics.utils import topk, batch_nms
 from metrics.utils import valid_filter
 
+
 class minFDE_src(Metric):
     def __init__(self,
                  max_guesses: int = 6,
@@ -48,8 +49,8 @@ class minFDE(Metric):
                target: torch.Tensor,
                valid_mask: Optional[torch.Tensor] = None) -> None:
         inds_last = (valid_mask * torch.arange(1, valid_mask.size(-1) + 1, device=self.device)).argmax(dim=-1)
-        self.sum += torch.norm(pred[torch.arange(pred.size(0)).unsqueeze(1), :, torch.arange(pred.shape[2]).unsqueeze(0), inds_last].transpose(1,2) -
-                               target[torch.arange(pred.size(0)).unsqueeze(1), :, torch.arange(pred.shape[2]).unsqueeze(0), inds_last].transpose(1,2),
+        self.sum += torch.norm(pred[torch.arange(pred.size(0)).unsqueeze(1), :, torch.arange(pred.shape[2]).unsqueeze(0), inds_last].transpose(1, 2) -
+                               target[torch.arange(pred.size(0)).unsqueeze(1), :, torch.arange(pred.shape[2]).unsqueeze(0), inds_last].transpose(1, 2),
                                p=2, dim=-1).sum(-1).min(dim=-1)[0].sum()/2
         self.count += pred.size(0)
 

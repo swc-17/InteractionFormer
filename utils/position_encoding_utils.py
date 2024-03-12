@@ -1,6 +1,6 @@
 
-import torch 
-import math 
+import torch
+import math
 
 
 def gen_sineembed_for_position(pos_tensor, hidden_dim=256):
